@@ -5,16 +5,37 @@ using Player;
 namespace Framework
 {
     /**
-     * Forms the core state of each level. Everything that happens inside a level must be encapsulated
-     * and controlled through a level state instance. Each level must only have a single level state instance.
-     * All player controllers must be registered directly on the level state instance.
+     * Represents the central in-scene logic controller for a level. Each level must contain
+     * exactly one LevelState, which is responsible for initializing, updating, and shutting
+     * down gameplay logic during that level.
+     *
+     * Responsibilities:
+     * - Acts as the runtime representation of a level tied to a GameState.
+     * - Manages all local and networked player controllers active in the scene.
+     * - Handles per-frame (`Tick`) and fixed-frame (`FixedTick`) updates for active controllers.
+     * - Provides extension points for multiplayer-aware logic (`OnClientJoined`, `OnClientLeft`).
+     *
+     * Usage:
+     * - Attach one subclass of LevelState to a GameObject in the level scene.
+     * - GameManager will discover and assign it to the active GameState on scene load.
+     * - Register player controllers via index (offline) or clientId (networked).
+     * - Override `OnStart` and `OnExit` to implement level-specific initialization/cleanup.
+     *
+     * Integration Flow:
+     * GameState.LoadLevel() ->
+     * Unity Scene loads ->
+     * LevelState.Awake() ->
+     * GameManager.OnLevelStateFound() ->
+     * GameState.AssignLevelState() ->
+     * LevelState.OnStart()
      *
      * Date Created: 24-06-2025
      * Created By: Prayas Bharadwaj
      *
-     * Date Modified: "Latest Modification Date must be mentioned"
-     * Modified By: "Latest Modification Author name"
-    */
+     * Date Modified: 26-06-2025
+     * Modified By: Prayas Bharadwaj
+     */
+
 
     public abstract class LevelState : MonoBehaviour
     {
@@ -23,6 +44,7 @@ namespace Framework
         public GameState OwnerState { get; private set; }
 
         public Dictionary<int, PlayerController> PlayerControllers { get; private set; } = new();
+        public Dictionary<ulong, PlayerController> NetworkControllers { get; private set; } = new();
 
         public virtual void Initialize(GameState ownerState, string levelName)
         {
@@ -41,25 +63,17 @@ namespace Framework
 
         public virtual void Tick(float deltaTime)
         {
-            foreach (var kv in PlayerControllers)
+            foreach (var controller in GetAllActiveControllers())
             {
-                var controller = kv.Value;
-                if (controller.IsActive)
-                {
-                    controller.Tick(deltaTime);
-                }
+                controller.Tick(deltaTime);
             }
         }
 
         public virtual void FixedTick(float fixedDeltaTime)
         {
-            foreach (var kv in PlayerControllers)
+            foreach (var controller in GetAllActiveControllers())
             {
-                var controller = kv.Value;
-                if (controller.IsActive)
-                {
-                    controller.FixedTick(fixedDeltaTime);
-                }
+                controller.FixedTick(fixedDeltaTime);
             }
         }
 
@@ -86,5 +100,46 @@ namespace Framework
         {
             return PlayerControllers;
         }
+
+        public virtual void RegisterNetworkController(ulong clientId, PlayerController controller)
+        {
+            if (NetworkControllers.ContainsKey(clientId))
+            {
+                Debug.LogWarning($"Network controller for client {clientId} already exists and will be overwritten.");
+            }
+            NetworkControllers[clientId] = controller;
+        }
+
+        public virtual void UnregisterNetworkController(ulong clientId)
+        {
+            NetworkControllers.Remove(clientId);
+        }
+
+        public virtual PlayerController GetNetworkController(ulong clientId)
+        {
+            return NetworkControllers.GetValueOrDefault(clientId);
+        }
+
+        public virtual void OnClientJoined(ulong clientId)
+        {
+            Debug.Log($"Client {clientId} joined level '{LevelName}'");
+            // Subclasses can override to spawn controller or pawn
+        }
+
+        public virtual void OnClientLeft(ulong clientId)
+        {
+            Debug.Log($"Client {clientId} left level '{LevelName}'");
+            UnregisterNetworkController(clientId);
+        }
+
+        public IEnumerable<PlayerController> GetAllActiveControllers()
+        {
+            foreach (var c in PlayerControllers.Values)
+                if (c.IsActive) yield return c;
+
+            foreach (var c in NetworkControllers.Values)
+                if (c.IsActive) yield return c;
+        }
+
     }
 }

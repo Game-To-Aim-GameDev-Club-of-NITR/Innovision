@@ -1,20 +1,38 @@
 using System;
 using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Framework
 {
     /**
-     * The core game instance of the entire game. This is the main entry point of the entire game.
-     * It is recommended that for the entire game a single manager be created that is directly a subclass
-     * of GameManager or directly uses this class.
+     * The core singleton manager responsible for high-level game flow, including managing GameStates,
+     * scene transitions, and multiplayer client lifecycle events. It acts as the central entry point
+     * for orchestrating gameplay logic across scenes and multiplayer sessions.
+     *
+     * Responsibilities:
+     * - Holds and manages all registered GameStates.
+     * - Handles scene load/unload callbacks and delegates to the current GameState.
+     * - Tracks network client connections and disconnections (server-side only).
+     * - Delegates global Update and FixedUpdate calls to the active GameState.
+     *
+     * Usage:
+     * - This class is intended to be subclassed by the user.
+     * - In your subclass (e.g., MyGameManager), manually register all required GameStates in Awake().
+     * - GameManager must be present in the persistent bootstrap scene and marked DontDestroyOnLoad.
+     * - Call `SetGameState(string tag)` to switch between GameStates as needed.
+     *
+     * Multiplayer Notes:
+     * - Hooks into Unity Netcode’s NetworkManager to track client connections.
+     * - Calls `OnPlayerConnected(ulong)` and `OnPlayerDisconnected(ulong)` on the current GameState.
+     * - Only the server receives these callbacks.
      *
      * Date Created: 24-06-2025
      * Created By: Prayas Bharadwaj
      *
-     * Date Modified: "Latest Modification Date must be mentioned"
-     * Modified By: "Latest Modification Author name"
+     * Date Modified: 07-06-2025
+     * Modified By: Prayas Bharadwaj
      */
 
     public class GameManager : MonoBehaviour
@@ -26,12 +44,22 @@ namespace Framework
 
         private void OnEnable()
         {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnected;
+            }
             SceneManager.sceneLoaded += OnSceneLoaded;
             SceneManager.sceneUnloaded += OnSceneUnloaded;
         }
 
         private void OnDisable()
         {
+            if (NetworkManager.Singleton != null)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnected;
+            }
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneUnloaded -= OnSceneUnloaded;
         }
@@ -129,6 +157,26 @@ namespace Framework
         public void OnLevelStateFound(LevelState levelState)
         {
             CurrentGameState?.AssignLevelState(levelState);
+        }
+
+        private void OnClientConnected(ulong clientId)
+        {
+            if (!NetworkManager.Singleton.IsServer) return;
+
+            if (CurrentGameState != null)
+                CurrentGameState.OnPlayerConnected(clientId);
+            else
+                Debug.LogWarning($"Client {clientId} connected, but no active GameState yet.");
+        }
+
+        private void OnClientDisconnected(ulong clientId)
+        {
+            if (!NetworkManager.Singleton.IsServer) return;
+
+            if (CurrentGameState != null)
+                CurrentGameState.OnPlayerDisconnected(clientId);
+            else
+                Debug.LogWarning($"Client {clientId} disconnected, but no active GameState yet.");
         }
     }
 }

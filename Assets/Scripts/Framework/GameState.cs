@@ -1,22 +1,39 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace Framework
 {
     /**
-     * Forms the core game state of each level. Everything that happens inside a level must be
-     * handled through a game state instance. As such, it is necessary that all levels must have
-     * their own subclass of GameState
-     * It is also the responsibility of the game state to manage all startup and shutdown operations
-     * via LoadLevel() as well as the Enter() and Exit() methods.
-     * All updates must be handled through the Tick() method
+     * Represents the core abstract state of a level. All level-specific logic, including
+     * startup, shutdown, time tracking, and per-frame updates, must be managed through
+     * a subclass of this GameState.
+     *
+     * Responsibilities:
+     * - Manages the lifecycle of a level via `Enter()`, `Exit()`, and `LoadLevel()`.
+     * - Owns a reference to a `LevelState` MonoBehaviour, which handles in-scene logic.
+     * - Delegates per-frame and fixed-frame updates to the associated LevelState.
+     * - Handles scene load/unload and multiplayer client events (if applicable).
+     *
+     * Usage:
+     * - Subclass this ScriptableObject to define a specific game mode or level.
+     * - Set a unique `Tag` in the subclass constructor to register it in GameManager.
+     * - Implement `LoadLevel()` to load the associated Unity scene.
+     * - Override `OnPlayerConnected()` / `OnPlayerDisconnected()` in multiplayer contexts.
+     *
+     * Lifecycle Flow:
+     * GameManager -> SetGameState(tag) ->
+     * GameState.Enter() ->
+     * LoadLevel() ->
+     * OnSceneLoaded() ->
+     * AssignLevelState() ->
+     * LevelState.OnStart()
      *
      * Date Created: 24-06-2025
      * Created By: Prayas Bharadwaj
      *
-     * Date Modified: "Latest Modification Date must be mentioned"
-     * Modified By: "Latest Modification Author name"
-    */
+     * Date Modified: 25-06-2025
+     * Modified By: Prayas Bharadwaj
+     */
 
     public abstract class GameState : ScriptableObject
     {
@@ -34,6 +51,12 @@ namespace Framework
         }
 
         public abstract void LoadLevel();
+
+        public void SetLevelName(string levelName)
+        {
+            LevelName = levelName;
+        }
+
 
         public virtual void Enter()
         {
@@ -72,6 +95,18 @@ namespace Framework
             LevelState = levelState;
             LevelState.Initialize(this, LevelName);
             LevelState.OnStart();
+        }
+
+        public virtual void OnPlayerConnected(ulong clientId)
+        {
+            Debug.Log($"Client {clientId} connected to GameState '{Tag}'");
+            // Subclasses should override this to spawn players, assign controllers, etc.
+        }
+
+        public virtual void OnPlayerDisconnected(ulong clientId)
+        {
+            Debug.Log($"Client {clientId} disconnected from GameState '{Tag}'");
+            // Subclasses should override this to clean up players, controllers, etc.
         }
     }
 }

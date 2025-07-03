@@ -1,20 +1,29 @@
+using Unity.Netcode;
 using UnityEngine;
 
 namespace Player
 {
     /**
-     * Forms the base class for all player controllers. All player controllers in a given scene must be
-     * registered on the level state instance. A player controller is responsible for handling input and
-     * managing the player state and any other player related logic. It delegates input to the controlled pawn
+     * Forms the base class for all player controllers.
+     *
+     * A PlayerController acts as the interface between the player (or AI) and the Pawn they control.
+     * It is responsible for receiving input, managing player-specific logic, and directing behavior
+     * through the controlled Pawn instance.
+     *
+     * All PlayerControllers must be registered on the LevelState instance for the current level.
+     * Supports lifecycle methods such as Possess(), UnPossess(), Tick(), and FixedTick() for
+     * update-driven control logic.
+     *
+     * Extend this class to implement custom local or network-based player control.
      *
      * Date Created: 24-06-2025
      * Created By: Prayas Bharadwaj
      *
-     * Date Modified: "Latest Modification Date must be mentioned"
-     * Modified By: "Latest Modification Author name"
-    */
+     * Date Modified: 27-06-2025
+     * Modified By: Prayas Bharadwaj
+     */
 
-    public abstract class PlayerController : MonoBehaviour
+    public abstract class PlayerController : NetworkBehaviour
     {
         [SerializeField] public bool isLocalPlayer;
         public Pawn ControlledPawn { get; protected set; }
