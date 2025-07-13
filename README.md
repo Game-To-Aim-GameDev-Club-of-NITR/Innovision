@@ -18,7 +18,7 @@
 5. Chinmay:
   - Bot AI
   - Add models and synchronise animations
-6. +91 95560 59312:
+6. Anshu:
   - Handle in game UI(Bullets, Mags, Health bar)
   - Handle player movement
 7. Samir:
