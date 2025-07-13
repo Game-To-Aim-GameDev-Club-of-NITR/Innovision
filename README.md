@@ -9,7 +9,7 @@
 2. Prayas:
   - Networking calls and rpc management
   - Player and bot modelling
-3. +91 62646 38783:
+3. Dikesh:
   - Bot AI
   - Leaderboard implementation
 4. Animesh:
